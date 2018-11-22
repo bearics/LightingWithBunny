@@ -124,8 +124,7 @@ void MyTimer(int value)
 	if (spotLightShiniessTime <= 1) spotLightShiniessSpeedDirect = 1;
 	else if (spotLightShiniessTime >= 120)spotLightShiniessSpeedDirect = -1;
 	spotLightShiniessTime = spotLightShiniessTime + (spotLightShiniessSpeedDirect)* spotLightShiniessSpeed/2;
-	cout << spotLightShiniessTime << endl;
-
+	
 	glutPostRedisplay();
 	glutTimerFunc(TIMER, MyTimer, 1);
 }
