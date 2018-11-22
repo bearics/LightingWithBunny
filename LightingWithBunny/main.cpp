@@ -149,7 +149,7 @@ void DrawBunny()
 		glEnd();
 	}
 	glDisable(GL_LIGHTING);
-	
+
 	glColor3f(0, 0, 0);
 	for (int polygon = 0; polygon < nPolygons; polygon++)
 	{	// draw line
@@ -377,12 +377,10 @@ void SetPointLight()
 {
 	float ambientColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };         
 	float diffuseColor[] = { 2.5f, 2.5f, 2.5f, 10.0f };
-	//float specularColor[] = { 1.0f,  1.0f,  1.0f, 0.0f };        //¹æ»ç±¤
-	rotatePoints[pointLightTime / ROTATE_SPEED][3] = 0;
+	
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientColor);       
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseColor);       
 	glLightfv(GL_LIGHT0, GL_POSITION, rotatePoints[pointLightTime / ROTATE_SPEED]);
-	rotatePoints[pointLightTime / ROTATE_SPEED][3] = 1;
 
 }
 
@@ -414,10 +412,12 @@ void SetDirectLight()
 	float diffuseColor[] = { 5.0f, 5.0f, 5.0f, 1.0f };
 	float specularColor[] = { 20.0f,  20.0f,  20.0f, 1.0f };
 
+	rotatePoints[pointLightTime / ROTATE_SPEED][3] = 0;
 	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientColor);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseColor);
 	glLightfv(GL_LIGHT1, GL_SPECULAR, specularColor);
 	glLightfv(GL_LIGHT1, GL_POSITION, rotatePoints[directLightTime / ROTATE_SPEED]);
+	rotatePoints[pointLightTime / ROTATE_SPEED][3] = 1;
 }
 
 /////////////////////////////////////////////////////////
