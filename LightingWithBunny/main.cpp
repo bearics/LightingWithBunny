@@ -98,9 +98,6 @@ void ReadBunny(string path)
 
 			fin >> polygons[n][0] >> polygons[n][1] >> polygons[n][2];
 		}
-
-
-
 		fin.close();
 	}
 	else
@@ -630,7 +627,7 @@ void main(int argc, char* argv[])
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 	glutInitWindowSize(600, 600);
-	glutCreateWindow("Torus");
+	glutCreateWindow("Lighting with Bunny");
 
 	glutReshapeFunc(ChangeSize);
 	glutDisplayFunc(RenderScene);
