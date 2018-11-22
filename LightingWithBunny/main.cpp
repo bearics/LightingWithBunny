@@ -16,6 +16,8 @@ static double nPoints;
 static int nPolygons;
 static double** points;
 static int** polygons;
+static double** triangleMiddlePoints;
+static double** triangleNormalVectors;
 
 
 /**
@@ -70,6 +72,8 @@ void ReadBunny(string path)
 			fin >> polygons[n][0] >> polygons[n][1] >> polygons[n][2];
 		}
 
+
+
 		fin.close();
 	}
 	else
@@ -80,7 +84,10 @@ void ReadBunny(string path)
 	return;
 }
 
-void DrawTorusBunny()
+/**
+	Draw Bunny with triangles
+*/
+void DrawBunny()
 {
 
 	glColor3f(0, 0, 1);
@@ -102,6 +109,130 @@ void DrawTorusBunny()
 	}
 }
 
+/**
+	Get Triangle's middle points
+*/
+void GetTriangleMiddlepoints()
+{
+	triangleMiddlePoints = new double*[nPolygons];
+
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{	// read coordinates of points 
+		triangleMiddlePoints[polygon] = new double[3];
+
+		for (int n = 0; n < 3; n++)
+		{	// initialize triangleMiddlePoint
+			triangleMiddlePoints[polygon][n] = 0;
+		}
+
+		for (int point = 0; point < 3; point++)
+		{	// p1, p2, p3 in triangle
+			for (int n = 0; n < 3; n++)
+			{	// x, y, z
+				triangleMiddlePoints[polygon][n] += points[polygons[polygon][point] - 1][n] / 3;
+			}
+		}
+
+	}
+}
+
+/*
+	Normalize Vectors
+*/
+void NormalizeVectors(double* vector, double rate)
+{
+	double length = 0;
+	for (int n = 0; n < 3; n++)
+	{
+		length += vector[n] * vector[n];
+	}
+	length = sqrt(length);
+
+	for (int n = 0; n < 3; n++)
+	{
+		vector[n] = (vector[n] / length) / rate;
+	}
+}
+
+/**
+	Get Triangle's normal vectors
+*/
+void GetTriangleNormalVectors()
+{
+	triangleNormalVectors = new double*[nPolygons];
+
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{	// read coordinates of points 
+		triangleNormalVectors[polygon] = new double[3];
+
+		for (int n = 0; n < 3; n++)
+		{	// initialize triangleMiddlePoint
+			triangleNormalVectors[polygon][n] = 0;
+		}
+
+		double v1[3], v2[3];	// v1 = p1 - p0, v2 = p2 - p0
+
+		for (int n = 0; n < 3; n++)
+		{
+			v1[n] = points[polygons[polygon][1] - 1][n] - points[polygons[polygon][0] - 1][n];
+			v2[n] = points[polygons[polygon][2] - 1][n] - points[polygons[polygon][0] - 1][n];
+		}
+
+		for (int n = 0; n < 3; n++)
+		{	// cross product v1, v2
+			triangleNormalVectors[polygon][n] = (v1[(n + 1) % 3] * v2[(n + 2) % 3]) - (v2[(n + 1) % 3] * v1[(n + 2) % 3]);
+		}
+
+		NormalizeVectors(triangleNormalVectors[polygon], 15.0);
+	}
+}
+
+/*
+	Draw middle points
+*/
+void DrawPoints()
+{
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{
+		glColor3f(0, 0, 0);
+		glPointSize(2);
+		glBegin(GL_POINTS);
+		{	// draw normal vector = normalVector - middlePoint
+			glVertex3f(
+				triangleMiddlePoints[polygon][0],
+				triangleMiddlePoints[polygon][1],
+				triangleMiddlePoints[polygon][2]
+			);	// middle point
+		}
+		glEnd();
+	}
+}
+
+/*
+	Draw Normal vectors
+*/
+void DrawNormalVectors()
+{
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{
+		glColor3f(0, 0, 0);
+		glBegin(GL_LINES);
+		{	// draw normal vector = normalVector - middlePoint
+			glVertex3f(
+				triangleMiddlePoints[polygon][0],
+				triangleMiddlePoints[polygon][1],
+				triangleMiddlePoints[polygon][2]
+			);	// middle point
+			glVertex3f(
+				triangleNormalVectors[polygon][0] + triangleMiddlePoints[polygon][0],
+				triangleNormalVectors[polygon][1] + triangleMiddlePoints[polygon][1],
+				triangleNormalVectors[polygon][2] + triangleMiddlePoints[polygon][2]
+			);
+		}
+		glEnd();
+	}
+}
+
 
 void RenderScene()
 {
@@ -117,8 +248,9 @@ void RenderScene()
 
 
 	// Draw object
-	DrawTorusBunny();
-
+	DrawBunny();
+	//DrawPoints();
+	DrawNormalVectors();
 
 	// Flush 
 	glutSwapBuffers();
@@ -127,13 +259,17 @@ void RenderScene()
 
 void init(void)
 {
-	viewer[0] = 2;
-	viewer[1] = 2;
-	viewer[2] = 2;
+	viewer[0] = 1.3;
+	viewer[1] = 1.3;
+	viewer[2] = 1.3;
 
 	// read Bunny
 	ReadBunny("bunny_origin.txt");
 
+	GetTriangleMiddlepoints();
+	GetTriangleNormalVectors();
+
+	cout << "fin?" << endl;
 }
 
 void SetupRC(void)
