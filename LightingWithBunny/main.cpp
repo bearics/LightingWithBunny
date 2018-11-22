@@ -7,17 +7,36 @@
 #include <iostream>
 #include <string>
 
+
 using namespace std;
 
 #define PI 3.14159265
+#define TIMER 50
+#define ROTATE_START 2
+#define ROTATE_SPEED 2
 
+static bool option[3];
 static float viewer[3];
-static double nPoints;
+static int nPoints;
 static int nPolygons;
-static double** points;
+static GLfloat** points;
 static int** polygons;
-static double** triangleMiddlePoints;
-static double** triangleNormalVectors;
+static GLfloat** triangleMiddlePoints;
+static GLfloat** triangleNormalVectors;
+
+static GLfloat** rotateMatrix;
+
+static int rotateTime;	// set roate 
+static GLfloat** rotatePoints;
+
+static int pointLightRotateSpeed;
+static GLUquadric* pointLightSphere;
+
+static int directLightSpeed;
+static GLUquadric* directLightCylinder;
+static int directLightTime;	// set roate 
+static GLfloat directLight[4];
+
 
 
 /**
@@ -54,11 +73,11 @@ void ReadBunny(string path)
 	{
 		fin >> nPoints >> nPolygons;
 
-		points = new double*[nPoints];
+		points = new GLfloat*[nPoints];
 
 		for (int n = 0; n < nPoints; n++)
 		{	// read coordinates of points 
-			points[n] = new double[3];
+			points[n] = new GLfloat[3];
 
 			fin >> points[n][0] >> points[n][1] >> points[n][2];
 		}
@@ -84,25 +103,53 @@ void ReadBunny(string path)
 	return;
 }
 
+/*
+	set timer spped
+*/
+void MyTimer(int value)
+{
+	rotateTime = (rotateTime + pointLightRotateSpeed) % 360;
+	//directLightTime = (directLightTime + directLightSpeed) % 360;
+	glutPostRedisplay();
+	glutTimerFunc(TIMER, MyTimer, 1);
+}
+
 /**
 	Draw Bunny with triangles
 */
 void DrawBunny()
 {
-
-	glColor3f(0, 0, 1);
-
+	glColor3f(1, 0.8, 0.8);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	for (int polygon = 0; polygon < nPolygons; polygon++)
 	{	// Draw Bunny as Triangles with line frame
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glPointSize(20);
+		glBegin(GL_POINTS);
+		{
+			glVertex3fv(rotatePoints[rotateTime / ROTATE_SPEED]);
+		}
+		glEnd();
 		glBegin(GL_TRIANGLES);
 		{
 			for (int point = 0; point < 3; point++)
 			{
-				glVertex3f(
-					points[polygons[polygon][point] - 1][0],
-					points[polygons[polygon][point] - 1][1],
-					points[polygons[polygon][point] - 1][2]);
+				glNormal3fv(triangleNormalVectors[polygon]);
+				glVertex3fv(points[polygons[polygon][point] - 1]);
+			}
+		}
+		glEnd();
+	}
+	glDisable(GL_LIGHTING);
+	
+	glColor3f(0, 0, 0);
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{	// draw line
+		glBegin(GL_LINES);
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				glVertex3fv(points[polygons[polygon][i] - 1]);
+				glVertex3fv(points[polygons[polygon][(i + 1) % 3] - 1]);
 			}
 		}
 		glEnd();
@@ -114,11 +161,11 @@ void DrawBunny()
 */
 void GetTriangleMiddlepoints()
 {
-	triangleMiddlePoints = new double*[nPolygons];
+	triangleMiddlePoints = new GLfloat*[nPolygons];
 
 	for (int polygon = 0; polygon < nPolygons; polygon++)
 	{	// read coordinates of points 
-		triangleMiddlePoints[polygon] = new double[3];
+		triangleMiddlePoints[polygon] = new GLfloat[3];
 
 		for (int n = 0; n < 3; n++)
 		{	// initialize triangleMiddlePoint
@@ -139,9 +186,9 @@ void GetTriangleMiddlepoints()
 /*
 	Normalize Vectors
 */
-void NormalizeVectors(double* vector, double rate)
+void NormalizeVectors(GLfloat* vector, double rate)
 {
-	double length = 0;
+	GLfloat length = 0;
 	for (int n = 0; n < 3; n++)
 	{
 		length += vector[n] * vector[n];
@@ -159,11 +206,11 @@ void NormalizeVectors(double* vector, double rate)
 */
 void GetTriangleNormalVectors()
 {
-	triangleNormalVectors = new double*[nPolygons];
+	triangleNormalVectors = new GLfloat*[nPolygons];
 
 	for (int polygon = 0; polygon < nPolygons; polygon++)
 	{	// read coordinates of points 
-		triangleNormalVectors[polygon] = new double[3];
+		triangleNormalVectors[polygon] = new GLfloat[3];
 
 		for (int n = 0; n < 3; n++)
 		{	// initialize triangleMiddlePoint
@@ -198,11 +245,7 @@ void DrawPoints()
 		glPointSize(2);
 		glBegin(GL_POINTS);
 		{	// draw normal vector = normalVector - middlePoint
-			glVertex3f(
-				triangleMiddlePoints[polygon][0],
-				triangleMiddlePoints[polygon][1],
-				triangleMiddlePoints[polygon][2]
-			);	// middle point
+			glVertex3fv(triangleMiddlePoints[polygon]);	// middle point
 		}
 		glEnd();
 	}
@@ -218,11 +261,7 @@ void DrawNormalVectors()
 		glColor3f(0, 0, 0);
 		glBegin(GL_LINES);
 		{	// draw normal vector = normalVector - middlePoint
-			glVertex3f(
-				triangleMiddlePoints[polygon][0],
-				triangleMiddlePoints[polygon][1],
-				triangleMiddlePoints[polygon][2]
-			);	// middle point
+			glVertex3fv(triangleMiddlePoints[polygon]);	// middle point
 			glVertex3f(
 				triangleNormalVectors[polygon][0] + triangleMiddlePoints[polygon][0],
 				triangleNormalVectors[polygon][1] + triangleMiddlePoints[polygon][1],
@@ -232,6 +271,107 @@ void DrawNormalVectors()
 		glEnd();
 	}
 }
+
+void InitRotateAboutAxis(double a, GLfloat x, GLfloat y, GLfloat z)
+{	// Make the matrix R that rotates by a(=alpha) about a axis v
+
+	//double v[3];
+	//for (int i = 0; i < 3; i++)
+	//	v[i] = _v[3];
+
+	GLfloat vec[3] = { x, y, z };
+	NormalizeVectors(vec, 1);
+
+	rotateMatrix = new GLfloat*[3];
+	for (int i = 0; i < 3; i++)
+		rotateMatrix[i] = new GLfloat[3];
+
+	x = vec[0];
+	y = vec[1];
+	z = vec[2];
+	double cosa = cos(a);
+	double sina = sin(a);
+
+	// axis-angle rotation
+	rotateMatrix[0][0] = (x*x) + (1 - (x*x))* cosa + sina * 0;
+	rotateMatrix[0][1] = (x*y) + (0 - (x*y))* cosa + sina * (-z);
+	rotateMatrix[0][2] = (x*z) + (0 - (x*z))* cosa + sina * y;
+	rotateMatrix[1][0] = (y*x) + (0 - (y*x))* cosa + sina * z;
+	rotateMatrix[1][1] = (y*y) + (1 - (y*y))* cosa + sina * 0;
+	rotateMatrix[1][2] = (y*z) + (0 - (y*z))* cosa + sina * (-x);
+	rotateMatrix[2][0] = (z*x) + (0 - (z*x))* cosa + sina * (-y);
+	rotateMatrix[2][1] = (z*y) + (0 - (z*y))* cosa + sina * x;
+	rotateMatrix[2][2] = (z*z) + (1 - (z*z))* cosa + sina * 0;
+
+}
+
+void MatMatrix4x1(GLfloat** rotateMatrix, GLfloat* point, GLfloat* result)
+{
+	for (int row = 0; row < 3; row++)
+	{
+		result[row] = 0;
+		for (int col = 0; col < 3; col++)
+		{
+			result[row] += rotateMatrix[row][col] * point[col];
+		}
+	}
+
+}
+
+/**
+	Init Rotate Points(pre-make rotated points)
+*/
+void InitRotatePoints()
+{
+	rotatePoints = new GLfloat*[360 / ROTATE_SPEED];
+
+	rotatePoints[0] = new GLfloat[4];
+	rotatePoints[0][0] = 0;
+	rotatePoints[0][1] = 0;
+	rotatePoints[0][2] = ROTATE_START;
+	rotatePoints[0][3] = 1;
+
+	for (int n = 1; n < 360 / ROTATE_SPEED; n++)
+	{
+		rotatePoints[n] = new GLfloat[4];
+		MatMatrix4x1(rotateMatrix, rotatePoints[n-1], rotatePoints[n]);
+		rotatePoints[n][3] = 1;
+	}
+
+	pointLightSphere = gluNewQuadric();
+}
+
+/**
+	Draw Point light sphere
+*/
+void DrawPointLightShpere()
+{
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	{	// draw point light
+		glColor3f(0, 1, 1);
+		glRotatef((GLfloat)rotateTime, 1.0, 1.0, 1.0);
+		glTranslatef(0, 0, ROTATE_START);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		gluSphere(pointLightSphere, 0.1, 20, 20);
+	}
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
+}
+/**
+	Set Point light position
+*/
+void SetPointLight()
+{
+	float ambientColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };         
+	float diffuseColor[] = { 8.0f, 8.0f, 8.0f, 1.0f };         
+	//float specularColor[] = { 1.0f,  1.0f,  1.0f, 0.0f };        //¹æ»ç±¤
+
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientColor);       
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseColor);       
+	glLightfv(GL_LIGHT0, GL_POSITION, rotatePoints[rotateTime / ROTATE_SPEED]);
+}
+
 
 
 void RenderScene()
@@ -246,11 +386,29 @@ void RenderScene()
 	// Draw cooddination system
 	DrawCoordinationSystem(20);
 
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHT1);
+	//glEnable(GL_LIGHT2);
 
-	// Draw object
+	if (option[0])
+	{
+		pointLightRotateSpeed = ROTATE_SPEED;
+		DrawPointLightShpere();
+		SetPointLight();
+	}
+	else
+	{
+		pointLightRotateSpeed = 0;
+		glDisable(GL_LIGHT0);
+	}
+
+
+
+	// Draw Bunny
 	DrawBunny();
-	//DrawPoints();
 	DrawNormalVectors();
+
 
 	// Flush 
 	glutSwapBuffers();
@@ -259,15 +417,26 @@ void RenderScene()
 
 void init(void)
 {
-	viewer[0] = 1.3;
-	viewer[1] = 1.3;
-	viewer[2] = 1.3;
+	// set viewer
+	viewer[0] = 3.2;
+	viewer[1] = 3.2;
+	viewer[2] = 3.2;
+
+	// init option
+	for (int i = 0; i < 3; i++)
+		option[i] = FALSE;
 
 	// read Bunny
 	ReadBunny("bunny_origin.txt");
 
 	GetTriangleMiddlepoints();
 	GetTriangleNormalVectors();
+
+	InitRotateAboutAxis((ROTATE_SPEED * PI) / 180.0 , 1, 1, 1);
+
+	// point light init
+	InitRotatePoints();
+
 
 	cout << "fin?" << endl;
 }
@@ -295,7 +464,8 @@ void ChangeSize(int w, int h)
 
 void Keyboard(unsigned char key, int x, int y)
 {
-
+	if (key == 'p') option[0] = option[0] ? FALSE : TRUE;
+	if (key == 'd') option[1] = option[1] ? FALSE : TRUE;
 	RenderScene();
 }
 
@@ -311,5 +481,6 @@ void main(int argc, char* argv[])
 	glutDisplayFunc(RenderScene);
 	glutKeyboardFunc(Keyboard);
 	SetupRC();	// Init Function
+	glutTimerFunc(TIMER, MyTimer, 1);
 	glutMainLoop();
 }
