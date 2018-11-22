@@ -26,17 +26,15 @@ static GLfloat** triangleNormalVectors;
 
 static GLfloat** rotateMatrix;
 
-static int rotateTime;	// set roate 
 static GLfloat** rotatePoints;
 
+static int pointLightTime; 
 static int pointLightRotateSpeed;
 static GLUquadric* pointLightSphere;
 
-static int directLightSpeed;
+static int directLightTime;
+static int directLightRotateSpeed;
 static GLUquadric* directLightCylinder;
-static int directLightTime;	// set roate 
-static GLfloat directLight[4];
-
 
 
 /**
@@ -108,8 +106,8 @@ void ReadBunny(string path)
 */
 void MyTimer(int value)
 {
-	rotateTime = (rotateTime + pointLightRotateSpeed) % 360;
-	//directLightTime = (directLightTime + directLightSpeed) % 360;
+	pointLightTime = (pointLightTime + pointLightRotateSpeed) % 360;
+	directLightTime = (directLightTime + directLightRotateSpeed) % 360;
 	glutPostRedisplay();
 	glutTimerFunc(TIMER, MyTimer, 1);
 }
@@ -126,7 +124,7 @@ void DrawBunny()
 		glPointSize(20);
 		glBegin(GL_POINTS);
 		{
-			glVertex3fv(rotatePoints[rotateTime / ROTATE_SPEED]);
+			glVertex3fv(rotatePoints[pointLightTime / ROTATE_SPEED]);
 		}
 		glEnd();
 		glBegin(GL_TRIANGLES);
@@ -337,8 +335,7 @@ void InitRotatePoints()
 		MatMatrix4x1(rotateMatrix, rotatePoints[n-1], rotatePoints[n]);
 		rotatePoints[n][3] = 1;
 	}
-
-	pointLightSphere = gluNewQuadric();
+	
 }
 
 /**
@@ -349,8 +346,8 @@ void DrawPointLightShpere()
 	glDisable(GL_LIGHTING);
 	glPushMatrix();
 	{	// draw point light
-		glColor3f(0, 1, 1);
-		glRotatef((GLfloat)rotateTime, 1.0, 1.0, 1.0);
+		glColor3f(1, 1, 0);
+		glRotatef((GLfloat)pointLightTime, 1.0, 1.0, 1.0);
 		glTranslatef(0, 0, ROTATE_START);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		gluSphere(pointLightSphere, 0.1, 20, 20);
@@ -369,9 +366,42 @@ void SetPointLight()
 
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientColor);       
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseColor);       
-	glLightfv(GL_LIGHT0, GL_POSITION, rotatePoints[rotateTime / ROTATE_SPEED]);
+	glLightfv(GL_LIGHT0, GL_POSITION, rotatePoints[pointLightTime / ROTATE_SPEED]);
 }
 
+/////////////////////////////////////////////////////////
+
+/**
+	Draw directional light cylinder
+*/
+void DrawDirectLightCylinder()
+{
+	glDisable(GL_LIGHTING);
+	glPushMatrix();
+	{	// draw point light
+		glColor3f(0, 1, 1);
+		glRotatef((GLfloat)directLightTime, 1.0, 1.0, 1.0);
+		glTranslatef(0, 0, ROTATE_START);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		gluCylinder(directLightCylinder, 0.05, 0.05, 0.4, 20, 20);
+	}
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
+}
+/**
+	Set direct light position
+*/
+void SetDirectLight()
+{
+	float ambientColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float diffuseColor[] = { 5.0f, 5.0f, 5.0f, 1.0f };
+	float specularColor[] = { 20.0f,  20.0f,  20.0f, 1.0f };
+
+	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientColor);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseColor);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, specularColor);
+	glLightfv(GL_LIGHT1, GL_POSITION, rotatePoints[directLightTime / ROTATE_SPEED]);
+}
 
 
 void RenderScene()
@@ -403,7 +433,17 @@ void RenderScene()
 		glDisable(GL_LIGHT0);
 	}
 
-
+	if (option[1])
+	{
+		directLightRotateSpeed = ROTATE_SPEED;
+		DrawDirectLightCylinder();
+		SetDirectLight();
+	}
+	else
+	{
+		directLightRotateSpeed = 0;
+		glDisable(GL_LIGHT1);
+	}
 
 	// Draw Bunny
 	DrawBunny();
@@ -436,7 +476,8 @@ void init(void)
 
 	// point light init
 	InitRotatePoints();
-
+	pointLightSphere = gluNewQuadric();
+	directLightCylinder = gluNewQuadric();
 
 	cout << "fin?" << endl;
 }
