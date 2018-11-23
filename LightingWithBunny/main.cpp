@@ -23,7 +23,7 @@ static GLfloat** points;
 static int** polygons;
 static GLfloat** triangleMiddlePoints;
 static GLfloat** triangleNormalVectors;
-static GLfloat** triangleShortNormalVectors;
+static GLfloat** vertexNormalVectors;
 
 static GLfloat** rotateMatrix;
 
@@ -42,7 +42,7 @@ static int spotLightRotateSpeed;
 static int spotLightCutoffTime;
 static int spotLightCutoffSpeed;
 static int spotLightCutoffSpeedDirect;
-static int spotLightShiniessTime;
+static float spotLightShiniessTime;
 static int spotLightShiniessSpeed;
 static int spotLightShiniessSpeedDirect;
 static GLUquadric* spotLightCon;
@@ -121,7 +121,7 @@ void MyTimer(int value)
 	else if(spotLightCutoffTime >= 25)spotLightCutoffSpeedDirect = -1;	
 	spotLightCutoffTime = spotLightCutoffTime + (spotLightCutoffSpeedDirect)* spotLightCutoffSpeed/2;
 
-	if (spotLightShiniessTime <= 1) spotLightShiniessSpeedDirect = 1;
+	if (spotLightShiniessTime <= 0) spotLightShiniessSpeedDirect = 1;
 	else if (spotLightShiniessTime >= 120)spotLightShiniessSpeedDirect = -1;
 	spotLightShiniessTime = spotLightShiniessTime + (spotLightShiniessSpeedDirect)* spotLightShiniessSpeed/2;
 	
@@ -134,20 +134,25 @@ void MyTimer(int value)
 */
 void DrawBunny()
 {
-	glColor3f(1,0.5,0.5);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	for (int polygon = 0; polygon < nPolygons; polygon++)
-	{	// Draw Bunny as Triangles with line frame
-		glBegin(GL_TRIANGLES);
-		{
-			for (int point = 0; point < 3; point++)
+	glColor3f(1.0, 0.6824, 0.7882);
+	glPushMatrix();
+	{
+
+		for (int polygon = 0; polygon < nPolygons; polygon++)
+		{	// Draw Bunny as Triangles with line frame
+
+			glBegin(GL_TRIANGLES);
 			{
-				glNormal3fv(triangleNormalVectors[polygon]);
-				glVertex3fv(points[polygons[polygon][point] - 1]);
+				for (int point = 0; point < 3; point++)
+				{
+					glNormal3fv(vertexNormalVectors[polygons[polygon][point]-1]);
+					glVertex3fv(points[polygons[polygon][point] - 1]);
+				}
 			}
+			glEnd();
 		}
-		glEnd();
 	}
+	glPopMatrix();
 	glDisable(GL_LIGHTING);
 
 	glColor3f(0, 0, 0);
@@ -216,13 +221,10 @@ void NormalizeVectors(GLfloat* vector, double rate)
 void GetTriangleNormalVectors()
 {
 	triangleNormalVectors = new GLfloat*[nPolygons];
-	triangleShortNormalVectors = new GLfloat*[nPolygons];
 
 	for (int polygon = 0; polygon < nPolygons; polygon++)
 	{	// read coordinates of points 
 		triangleNormalVectors[polygon] = new GLfloat[3];
-		triangleShortNormalVectors[polygon] = new GLfloat[3];
-
 		for (int n = 0; n < 3; n++)
 		{	// initialize triangleMiddlePoint
 			triangleNormalVectors[polygon][n] = 0;
@@ -242,9 +244,40 @@ void GetTriangleNormalVectors()
 		}
 
 		NormalizeVectors(triangleNormalVectors[polygon], 5.0);
-		for (int i = 0; i < 3; i++)
-			triangleShortNormalVectors[polygon][i] = triangleNormalVectors[polygon][i] / 2.0;
 	}
+}
+
+/**
+	Get vertex normal vectors
+*/
+void GetVertexNormalVectors()
+{
+	vertexNormalVectors = new GLfloat*[nPoints];
+	for (int point = 0; point < nPoints; point++)
+	{
+		vertexNormalVectors[point] = new GLfloat[3];
+		for (int i = 0; i < 3; i++)
+		{
+			vertexNormalVectors[point][i] = 0;
+		}
+	}
+
+	for (int polygon = 0; polygon < nPolygons; polygon++)
+	{
+		for (int n = 0; n < 3; n++)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				vertexNormalVectors[polygons[polygon][n] - 1][i] += triangleNormalVectors[polygon][i];
+			}
+		}		
+	}
+
+	for (int point = 0; point < nPoints; point++)
+	{
+		NormalizeVectors(vertexNormalVectors[point], 5.0);
+	}
+
 }
 
 /*
@@ -269,16 +302,16 @@ void DrawPoints()
 */
 void DrawNormalVectors()
 {
-	for (int polygon = 0; polygon < nPolygons; polygon++)
+	for (int point = 0; point < nPoints; point++)
 	{
-		glColor3f(0, 0, 0);
+		glColor3f(0, 0, 0); 
 		glBegin(GL_LINES);
 		{	// draw normal vector = normalVector - middlePoint
-			glVertex3fv(triangleMiddlePoints[polygon]);	// middle point
+			glVertex3fv(points[point]);	
 			glVertex3f(
-				triangleShortNormalVectors[polygon][0] + triangleMiddlePoints[polygon][0],
-				triangleShortNormalVectors[polygon][1] + triangleMiddlePoints[polygon][1],
-				triangleShortNormalVectors[polygon][2] + triangleMiddlePoints[polygon][2]
+				points[point][0] + vertexNormalVectors[point][0],
+				points[point][1] + vertexNormalVectors[point][1],
+				points[point][2] + vertexNormalVectors[point][2]
 			);
 		}
 		glEnd();
@@ -452,7 +485,7 @@ void SetSpotLight()
 
 	GLfloat ambientColor[] = { 0.1f, 0.1f, 0.1f, 1.0f };
 	GLfloat diffuseColor[] = { 8.0f, 8.0f, 8.0f, 1.0f };
-	GLfloat specularColor[] = { 1.0f,  1.0f,  1.0f, 1.0f };
+	GLfloat specularColor[] = { 2.0f,  2.0f,  2.0f, 1.0f };
 
 	glLightfv(GL_LIGHT2, GL_AMBIENT, ambientColor);
 	glLightfv(GL_LIGHT2, GL_DIFFUSE, diffuseColor);
@@ -461,11 +494,22 @@ void SetSpotLight()
 
 	glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, spotDirection);
 	glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, spotLightCutoffTime);
-	glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, spotLightShiniessTime);
+	glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, spotLightCutoffTime);
+
+	
+	cout << spotLightShiniessTime<< ", " << spotLightCutoffTime << endl;
 
 	glLightf(GL_LIGHT2, GL_CONSTANT_ATTENUATION, 0.2);
 	glLightf(GL_LIGHT2, GL_LINEAR_ATTENUATION, 0.1);
 	glLightf(GL_LIGHT2, GL_QUADRATIC_ATTENUATION, 0.05);
+
+	glEnable(GL_COLOR_MATERIAL);
+	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+
+	GLfloat specref[] = { 2.0f, 2.0f, 2.0f, 1.0f };
+	glMaterialfv(GL_FRONT, GL_SPECULAR, specref);
+	glMateriali(GL_FRONT, GL_SHININESS, spotLightShiniessTime);
+	//glMateriali(GL_FRONT, GL_SHININESS, spotLightShiniessTime);
 }
 
 
@@ -571,6 +615,7 @@ void init(void)
 
 	GetTriangleMiddlepoints();
 	GetTriangleNormalVectors();
+	GetVertexNormalVectors();
 
 	InitRotateAboutAxis((ROTATE_SPEED * PI) / 180.0 , 1, 1, 1);
 
